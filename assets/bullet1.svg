@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="16"
+   height="16"
+   viewBox="0 0 4.2333334 4.233333"
+   version="1.1"
+   id="svg1"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1">
+    <linearGradient
+       id="linearGradient1">
+      <stop
+         style="stop-color:#ffff00;stop-opacity:1;"
+         offset="0"
+         id="stop1" />
+      <stop
+         style="stop-color:#ffff00;stop-opacity:1;"
+         offset="0.49674582"
+         id="stop3" />
+      <stop
+         style="stop-color:#ffffff;stop-opacity:0;"
+         offset="0.99945962"
+         id="stop2" />
+    </linearGradient>
+    <radialGradient
+       xlink:href="#linearGradient1"
+       id="radialGradient2"
+       cx="2.1166668"
+       cy="2.1166668"
+       fx="2.1166668"
+       fy="2.1166668"
+       r="2.0875001"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(1.0283407,0,0,1.0283408,-0.00163521,-0.00163617)" />
+  </defs>
+  <ellipse
+     style="mix-blend-mode:normal;fill:#ffff00;fill-opacity:1;stroke:url(#radialGradient2);stroke-width:2.05668;stroke-linecap:butt;stroke-dasharray:none;stroke-dashoffset:0;paint-order:normal"
+     id="path1"
+     cx="2.1750193"
+     cy="2.1750185"
+     rx="1.0883273"
+     ry="1.0883274" />
+</svg>
