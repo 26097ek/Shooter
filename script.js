@@ -30,21 +30,21 @@ class Enemy {
     };
 
     split(){
-        this.size >= 320?this.hp = 5:this.hp = 1;
+        this.size >= 320?this.hp = 8:this.hp = 1;
         this.size *= .5;
         this.speed *= 2;
         this.vx = this.speed*Math.cos(this.md);
         this.vy = this.speed*Math.sin(this.md);
         const _prevSpin = this.spin;
-        this.spin *= 1+Math.random()*.5-.25;
+        this.spin *= .75+Math.random()*.5;
         const _split1 = enemyPool.getDormantEnemy();
         if(!_split1)return;
         _split1.active = true;
         const _split2 = enemyPool.getDormantEnemy();
         if(!_split2)return;
         _split2.active = true;
-        _split1.spawn(this.x,this.y,this.md+Math.PI*.667,this.speed,this.d,_prevSpin*Math.random()*.5-.25,this.size,this.hp);
-        _split2.spawn(this.x,this.y,this.md-Math.PI*.667,this.speed,this.d,_prevSpin*Math.random()*.5-.25,this.size,this.hp);
+        _split1.spawn(this.x,this.y,this.md+Math.PI*.667,this.speed,this.d,_prevSpin*(.75+Math.random()*.5),this.size,this.hp);
+        _split2.spawn(this.x,this.y,this.md-Math.PI*.667,this.speed,this.d,_prevSpin*(.75+Math.random()*.5),this.size,this.hp);
     }
 
     update(dt){
@@ -64,6 +64,7 @@ class Enemy {
 
 class EnemyPool {
     pool = [];
+    delay = 25;
     constructor(size = 256){
         for (let i=0;i<size;i++){
             const enemy = new Enemy();
@@ -79,7 +80,39 @@ class EnemyPool {
     };
 
     updateAll(dt){
-        if (ctrl.space){if(this.getDormantEnemy()){this.getDormantEnemy().spawn(Math.random()*canvas.width-canvas.width/2,Math.random()*canvas.height-canvas.height/2,Math.random()*2*Math.PI-Math.PI,5,1,0.04,320,20)}}
+        const goToEdge = function(angle) {
+            const halfW = (canvas.width+640) / 2;
+            const halfH = (canvas.height+640) / 2;
+
+            const cos = Math.cos(angle);
+            const sin = Math.sin(angle);
+
+            // Avoid division by zero if moving perfectly vertically or horizontally
+            const absCos = Math.abs(cos) < 1e-9 ? 1e-9 : Math.abs(cos);
+            const absSin = Math.sin(angle) === 0 ? 1e-9 : Math.abs(sin);
+
+            // Calculate the distance to the vertical edges and horizontal edges
+            const tHorizontal = halfW / absCos;
+            const tVertical = halfH / absSin;
+
+            // The smaller distance is where it hits the edge first
+            const t = Math.min(tHorizontal, tVertical);
+
+            // Multiply the normalized direction vector by the scaling factor
+            return {
+                x: cos * t,
+                y: sin * t
+            };
+        }
+
+        if (ctrl.space){if(this.getDormantEnemy()){this.getDormantEnemy().spawn(Math.random()*canvas.width-canvas.width/2,Math.random()*canvas.height-canvas.height/2,Math.random()*2*Math.PI-Math.PI,5,1,0.04,320,32)}}
+        this.delay += dt/5;
+        if (this.delay>ENEMYDELAY) {
+            this.delay = 0;
+            const _dir = Math.random()*Math.PI*2;
+            const _coords = goToEdge(_dir);
+            if(this.getDormantEnemy()){this.getDormantEnemy().spawn(_coords.x,_coords.y,_dir+Math.PI,5,_dir,0.04,320,32);console.debug("enemy spawned")}
+        };
         for (let i=0;i<this.pool.length;i++){
             this.pool[i].update(dt)
         };
@@ -254,8 +287,8 @@ const draw = function() {
     for (let i=0;i<bulletPool.pool.length;i++){
         if (bulletPool.pool[i].active){
             ctx.save();
-            ctx.translate(bulletPool.pool[i].x,bulletPool.pool[i].y)
-            ctx.drawImage(imgCanvas, 128, 0, 32, 32, -8, -8, 16, 16)
+            ctx.translate(bulletPool.pool[i].x,bulletPool.pool[i].y);
+            ctx.drawImage(imgCanvas, 128, 0, 32, 32, -8, -8, 16, 16);
             ctx.restore();
     }};
 
@@ -368,16 +401,17 @@ const gameLoop = function(timestamp){
 const debug = document.querySelector("#debug");
 const gameFrame = document.querySelector("#game");
 const canvas = document.querySelector("#canvas");
-const ctx = canvas.getContext("2d")
+const ctx = canvas.getContext("2d");
 //const player = document.querySelector("#player");
 //const playerImg = document.querySelector("#playerImg");
 //Constants
-const BULLETSPEED = 200
-const BULLETTIMIMG = 4
-const DTCAP = 0.1
-const SPEED = 72
-const SLOWSPEED = 36
-const FRICTION = 0.95
+const BULLETSPEED = 200;
+const BULLETTIMIMG = 4;
+const DTCAP = 0.1;
+const SPEED = 72;
+const SLOWSPEED = 36;
+const FRICTION = 0.95;
+const ENEMYDELAY = 30;
 //Variables & Lists
 const player = {px:0,py:0,vx:0,vy:0,d:0}
 let frameSize = gameFrame.getBoundingClientRect();
@@ -393,17 +427,17 @@ const ctrl = {
     lclick:false,
     rclick:false,
     mclick:false,
-}
+};
 //Images
 const imageNames = [
     "ship1.svg",
     "bullet1.svg",
     "orange.svg",
     "aimer.svg"
-]
+];
 const imgCanvas = document.createElement("canvas");
-const bulletPool = new BulletPool()
-const enemyPool = new EnemyPool()
+const bulletPool = new BulletPool();
+const enemyPool = new EnemyPool();
 let timing = 0;
 let lt;
 
@@ -424,6 +458,6 @@ document.addEventListener("mousedown", (e)=>{updateMouse(true,e)},{passive:true}
 document.addEventListener("mouseup", (e)=>{updateMouse(false,e)},{passive:true});
 
 //Img loading
-loadImages()
+loadImages();
 //Main Code
 
