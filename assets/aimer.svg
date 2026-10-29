@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="48"
+   height="48"
+   viewBox="0 0 4.233333 4.233333"
+   version="1.1"
+   id="svg1"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <g
+     id="layer1">
+    <ellipse
+       style="fill:#ffffff;fill-opacity:0;stroke:#000000;stroke-width:0.498039;stroke-dasharray:none;stroke-opacity:1"
+       id="ellipse127"
+       cx="2.1166666"
+       cy="2.1166666"
+       rx="1.5660157"
+       ry="1.5660158" />
+    <path
+       style="fill:#ffffff;fill-opacity:0;stroke:#000000;stroke-width:0.49804;stroke-dasharray:none;stroke-opacity:1"
+       d="M -1.8333334e-8,2.1166667 H 1.7431373"
+       id="path135" />
+    <path
+       style="fill:#ffffff;fill-opacity:0;stroke:#000000;stroke-width:0.49804;stroke-dasharray:none;stroke-opacity:1"
+       d="M 2.1166667,-1.8333334e-8 V 1.7431373"
+       id="path136" />
+    <path
+       style="fill:#ffffff;fill-opacity:0;stroke:#000000;stroke-width:0.49804;stroke-dasharray:none;stroke-opacity:1"
+       d="M 2.1166667,4.2333334 V 2.4901961"
+       id="path137" />
+    <path
+       style="fill:#ffffff;fill-opacity:0;stroke:#000000;stroke-width:0.49804;stroke-dasharray:none;stroke-opacity:1"
+       d="M 2.4901961,2.1166667 H 4.2333334"
+       id="path138" />
+    <ellipse
+       style="fill:#ffffff;fill-opacity:0;stroke:#ffffff;stroke-width:0.24902;stroke-dasharray:none;stroke-opacity:1"
+       id="path1"
+       cx="2.1166666"
+       cy="2.1166666"
+       rx="1.5660157"
+       ry="1.5660158" />
+    <path
+       style="fill:#ffffff;fill-opacity:0;stroke:#ffffff;stroke-width:0.249019;stroke-dasharray:none;stroke-opacity:1"
+       d="M 0.12450979,2.1166667 H 1.6186275"
+       id="path128" />
+    <path
+       style="fill:#ffffff;fill-opacity:0;stroke:#ffffff;stroke-width:0.249019;stroke-dasharray:none;stroke-opacity:1"
+       d="M 2.1166667,0.12450979 V 1.6186275"
+       id="path129" />
+    <path
+       style="fill:#ffffff;fill-opacity:0;stroke:#ffffff;stroke-width:0.249019;stroke-dasharray:none;stroke-opacity:1"
+       d="M 2.1166667,4.1088235 V 2.6147059"
+       id="path130" />
+    <path
+       style="fill:#ffffff;fill-opacity:0;stroke:#ffffff;stroke-width:0.249019;stroke-dasharray:none;stroke-opacity:1"
+       d="M 2.6147059,2.1166667 H 4.1088235"
+       id="path131" />
+  </g>
+</svg>

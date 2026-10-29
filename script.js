@@ -1,6 +1,91 @@
 "use strict";
 //Classes
 
+class Enemy {
+    constructor(){
+        this.x = 0;
+        this.y = 0;
+        this.vx = 0;
+        this.vy = 0;
+        this.d = 0;
+        this.spin = 0;
+        this.size = 64;
+        this.hp = 0;
+        this.hurt = false;
+        this.active = false;
+    }
+
+    spawn(x,y,md,v,d,spin,size,hp){
+        this.x = x;
+        this.y = y;
+        this.vx = v*Math.cos(md);
+        this.vy = v*Math.sin(md);
+        this.speed = v
+        this.d = d;
+        this.md = md
+        this.spin = spin;
+        this.size = size;
+        this.hp = hp;
+        this.active = true;
+    };
+
+    split(){
+        this.size >= 320?this.hp = 5:this.hp = 1;
+        this.size *= .5;
+        this.speed *= 2;
+        this.vx = this.speed*Math.cos(this.md);
+        this.vy = this.speed*Math.sin(this.md);
+        const _prevSpin = this.spin;
+        this.spin *= 1+Math.random()*.5-.25;
+        const _split1 = enemyPool.getDormantEnemy();
+        if(!_split1)return;
+        _split1.active = true;
+        const _split2 = enemyPool.getDormantEnemy();
+        if(!_split2)return;
+        _split2.active = true;
+        _split1.spawn(this.x,this.y,this.md+Math.PI*.667,this.speed,this.d,_prevSpin*Math.random()*.5-.25,this.size,this.hp);
+        _split2.spawn(this.x,this.y,this.md-Math.PI*.667,this.speed,this.d,_prevSpin*Math.random()*.5-.25,this.size,this.hp);
+    }
+
+    update(dt){
+        if (!this.active) return;
+        if (this.hurt) this.hurt = false
+        this.x += this.vx*dt;
+        this.y += this.vy*dt;
+        this.d += this.spin;
+        if(Math.abs(this.x)>canvas.width*.5+this.size*.75){
+            this.x = -(canvas.width*.5+this.size*.75)*Math.sign(this.x)
+        };
+        if(Math.abs(this.y)>canvas.height*.5+this.size*.75){
+            this.y = -(canvas.height*.5+this.size*.75)*Math.sign(this.y)
+        };
+    };
+};
+
+class EnemyPool {
+    pool = [];
+    constructor(size = 256){
+        for (let i=0;i<size;i++){
+            const enemy = new Enemy();
+            this.pool.push(enemy);
+        };
+    };
+
+    getDormantEnemy(){
+        for (let i=0;i<this.pool.length;i++){
+            if(!this.pool[i].active) return this.pool[i];
+        };
+        return undefined
+    };
+
+    updateAll(dt){
+        if (ctrl.space){if(this.getDormantEnemy()){this.getDormantEnemy().spawn(Math.random()*canvas.width-canvas.width/2,Math.random()*canvas.height-canvas.height/2,Math.random()*2*Math.PI-Math.PI,5,1,0.04,320,20)}}
+        for (let i=0;i<this.pool.length;i++){
+            this.pool[i].update(dt)
+        };
+    };
+};
+
 class Bullet {
   constructor() {
     this.active = false;
@@ -18,10 +103,10 @@ class Bullet {
     this.active = true;
   }
 
-  update() {
+  update(dt) {
     if (!this.active) return;
-    this.x += this.vx;
-    this.y += this.vy;
+    this.x += this.vx*dt;
+    this.y += this.vy*dt;
 
     // Deactivate if off-screen (example bounds: 800x600)
     if (this.x < canvas.width*-0.5 || this.x > canvas.width*0.5 || this.y < canvas.height*-0.5 || this.y > canvas.height*0.5) {
@@ -38,7 +123,7 @@ class BulletPool {
     }
   }
 
-  getBullet() {
+  getDormantBullet() {
     // Find an inactive bullet
     for (let i = 0; i < this.pool.length; i++) {
       if (!this.pool[i].active) {
@@ -51,9 +136,9 @@ class BulletPool {
     return newBullet;
   }
 
-  updateAll() {
+  updateAll(dt) {
     for (let i = 0; i < this.pool.length; i++) {
-      this.pool[i].update();
+      this.pool[i].update(dt);
     }
   }
 }
@@ -79,7 +164,8 @@ function resizeCanvas() {
     canvas.style.height = `${rect.height}px`;
     
     // 5. Scale the drawing context so your drawing commands don't warp
-    //ctx.scale(1,1);
+    ctx.translate(canvas.width/2,canvas.height/2);
+    ctx.scale(dpr,dpr);
 }
 
 const loadImages = async function() {
@@ -92,15 +178,18 @@ const loadImages = async function() {
         });
     };
     try {
-        const _imagePromises = imageNames.map(url => loadSingleImage(url));
-        const _results = await Promise.allSettled(_imagePromises);
+        const images = await Promise.all(imageNames.map(loadSingleImage));
 
-        // Filter out the ones that succeeded
-        const _images = _results.flatMap(r => r.status === 'fulfilled' ? [{i:r.value,h:r.value.height,w:r.value.width}] : []);
+        const imgCanvasctx = imgCanvas.getContext("2d");
+        imgCanvas.width = 1024;
+        imgCanvas.height = 320;
 
-        console.debug(_images);
-        shipImgs = _images.slice(0,1);
-        bulletImgs = _images.slice(1,2);
+        let x = 0;
+        for (const image of images) {
+            imgCanvasctx.drawImage(image, x, 0);
+            x += image.width;
+        }
+        
         document.querySelector("#loading").style.display = "none";
         document.querySelector("#start").style.display = "block";
     } catch (error) {
@@ -109,51 +198,75 @@ const loadImages = async function() {
 };
 
 const fireBullet = function() {
-    console.debug(--timing)
+    --timing
     if (!ctrl.lclick||timing>=0) return;
-    const bullet = bulletPool.getBullet();
-    bullet.spawn(player.px,player.py,BULLETSPEED*Math.cos(player.d),BULLETSPEED*Math.sin(player.d));
+    const bullet = bulletPool.getDormantBullet();
+    const speed = BULLETSPEED+Math.floor(Math.random()*4-2)
+    bullet.spawn(player.px,player.py,speed*Math.cos(player.d),speed*Math.sin(player.d));
     timing = BULLETTIMIMG+Math.floor(Math.random()*2-1)
 };
 
-const draw = function(pImg,bImg) {
+const checkCollisions = function(){
+    for (let i=bulletPool.pool.length-1;i>=0;i--){
+        let bullet = bulletPool.pool[i];
+        if (!bullet.active) continue;
+        for (let j=enemyPool.pool.length-1;j>=0;j--){
+            let enemy = enemyPool.pool[j];
+            if (!enemy.active) continue;
+            
+            let dx = bullet.x - enemy.x;
+            let dy = bullet.y - enemy.y;
+
+            const collisionRadius = enemy.size/2 + 4;
+            if (dx*dx+dy*dy<collisionRadius*collisionRadius){
+                enemy.hp -= 1;
+                enemy.hurt = true;
+                if(enemy.hp<=0){enemy.size>40?enemy.split():enemy.active=false}
+                bullet.active = false;
+                break;
+            }
+        };
+    };
+};
+
+const draw = function() {
     //lots of steps here, so im going to label them
     //clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.clearRect(-canvas.width/2, -canvas.height/2, canvas.width, canvas.height)
     //draw line    
-    ctx.beginPath();
+    /*ctx.beginPath();
     ctx.strokeStyle = "#ff0000"
     ctx.lineWidth = 5
     ctx.setLineDash([16,12])
     ctx.moveTo(player.px+(canvas.width/2),player.py+(canvas.height/2));
     ctx.lineTo(mousePos.x+(canvas.width/2),mousePos.y+(canvas.height/2));
-    ctx.stroke();
-    if (ctrl.lclick){
-        ctx.save();
-        //transform 
-        ctx.translate(mousePos.x+(canvas.width/2),mousePos.y+(canvas.height/2));
-        //draw 
-        ctx.drawImage(bImg.i, -bImg.w / 2, -bImg.h / 2, bImg.w, bImg.h);
-        ctx.restore();
-    }
+    ctx.stroke();*/
+    for (let i=0;i<enemyPool.pool.length;i++){
+        if (enemyPool.pool[i].active){
+            ctx.save();
+            ctx.translate(enemyPool.pool[i].x,enemyPool.pool[i].y)
+            ctx.rotate(enemyPool.pool[i].d)
+            if (enemyPool.pool[i].hurt) ctx.filter = 'brightness(0) invert(1)';
+            ctx.drawImage(imgCanvas, 160, 0, 320, 320, enemyPool.pool[i].size/64*-40, enemyPool.pool[i].size/64*-40, enemyPool.pool[i].size/64*80, enemyPool.pool[i].size/64*80);
+            ctx.filter = 'none';
+            ctx.restore();
+    }};
     for (let i=0;i<bulletPool.pool.length;i++){
-
         if (bulletPool.pool[i].active){
             ctx.save();
-            ctx.translate(bulletPool.pool[i].x+(canvas.width/2),bulletPool.pool[i].y+(canvas.height/2))
-            ctx.drawImage(bImg.i, -bImg.w / 2, -bImg.h / 2, bImg.w, bImg.h)
+            ctx.translate(bulletPool.pool[i].x,bulletPool.pool[i].y)
+            ctx.drawImage(imgCanvas, 128, 0, 32, 32, -8, -8, 16, 16)
             ctx.restore();
-    }
-    }
+    }};
+
     //save state
     ctx.save();
     //transform player
-    ctx.translate(player.px+(canvas.width/2),player.py+(canvas.height/2));
+    ctx.translate(player.px,player.py);
     ctx.rotate(player.d);
     //draw player
-    ctx.drawImage(pImg.i, -pImg.w / 2, -pImg.h / 2, pImg.w, pImg.h);
+    ctx.drawImage(imgCanvas, 0, 0, 128, 128,-32,-32,64,64);
     ctx.restore();
-
 };
 
 const updateKey = function(state,e) {
@@ -205,45 +318,48 @@ const printDebug = function () {
     `
 };
 
-const updatePlayer = function () {
+const updatePlayer = function (dt) {
     const _difX = mousePos.x-player.px;
     const _difY = mousePos.y-player.py;
     player.d = Math.atan2(_difY,_difX);
     //if (difX!=0||difY!=0){playerImg.style.transform = `translate(-50%,-50%) rotate(${Math.atan2(difY,difX) * (180/Math.PI)}deg)`};
 
-    player.vx += (ctrl.right-ctrl.left)*(ctrl.shift?SLOWSPEED:SPEED)
-    player.vy += (ctrl.down-ctrl.up)*(ctrl.shift?SLOWSPEED:SPEED)
+    player.vx += (ctrl.right-ctrl.left)*(ctrl.shift?SLOWSPEED:SPEED)*dt;
+    player.vy += (ctrl.down-ctrl.up)*(ctrl.shift?SLOWSPEED:SPEED)*dt;
     player.vx *= FRICTION
     player.vy *= FRICTION
-    player.px += player.vx
-    player.py += player.vy
-    if (player.px<canvas.width/-2) {
-        player.px = canvas.width/-2
-    } else if(player.px>canvas.width/2){
-        player.px = canvas.width/2
+    player.px += player.vx*dt
+    player.py += player.vy*dt
+    if (Math.abs(player.px)>canvas.width/2){
+        player.px = canvas.width*.5*Math.sign(player.px)
     }
-    if (player.py<canvas.height/-2) {
-        player.py = canvas.height/-2
-    } else if(player.py>canvas.height/2){
-        player.py = canvas.height/2
+    if (Math.abs(player.py)>canvas.height/2){
+        player.py = canvas.height*.5*Math.sign(player.py)
     }
-
 
     //player.style.top = `${50((0-player.y)/9)}%`;
     //player.style.left = `${50((0-player.x)/16)}%`;
 };
 
+
+
 const setup = function(){
-    bulletPool = new BulletPool();
-    requestAnimationFrame(gameLoop)
+    requestAnimationFrame(gameLoop);
 }
 
 const gameLoop = function(timestamp){
-    updatePlayer();
+    if (!lt){lt = timestamp};
+    let dt = (timestamp - lt) *1000
+    if (dt>0.1){dt=0.1}
+    lt = timestamp
+    updatePlayer(dt);
     fireBullet();
-    bulletPool.updateAll();
-    draw(shipImgs[0],bulletImgs[0]);
+    bulletPool.updateAll(dt);
+    enemyPool.updateAll(dt);
+    checkCollisions()
+    draw();
     printDebug();
+    
 
     requestAnimationFrame(gameLoop);
 };
@@ -256,11 +372,11 @@ const ctx = canvas.getContext("2d")
 //const player = document.querySelector("#player");
 //const playerImg = document.querySelector("#playerImg");
 //Constants
-const BULLETSPEED = 20
-const BULLETTIMIMG = 1
+const BULLETSPEED = 200
+const BULLETTIMIMG = 4
 const DTCAP = 0.1
-const SPEED = 1.2
-const SLOWSPEED = 0.6
+const SPEED = 72
+const SLOWSPEED = 36
 const FRICTION = 0.95
 //Variables & Lists
 const player = {px:0,py:0,vx:0,vy:0,d:0}
@@ -281,12 +397,15 @@ const ctrl = {
 //Images
 const imageNames = [
     "ship1.svg",
-    "bullet1.svg"
+    "bullet1.svg",
+    "orange.svg",
+    "aimer.svg"
 ]
-let shipImgs;
-let bulletImgs;
-let bulletPool;
+const imgCanvas = document.createElement("canvas");
+const bulletPool = new BulletPool()
+const enemyPool = new EnemyPool()
 let timing = 0;
+let lt;
 
 //Event Listeners
 resizeCanvas()
@@ -307,5 +426,4 @@ document.addEventListener("mouseup", (e)=>{updateMouse(false,e)},{passive:true})
 //Img loading
 loadImages()
 //Main Code
-
 
