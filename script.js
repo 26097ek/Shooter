@@ -60,8 +60,8 @@ class Enemy {
         const _split2 = enemyPool.getDormantEnemy();
         if(!_split2)return;
         _split2.active = true;
-        _split1.spawn(this.x,this.y,this.md+Math.PI*.667,this.speed,this.d,_prevSpin*(.75+Math.random()*.5),this.size,this.hp);
-        _split2.spawn(this.x,this.y,this.md-Math.PI*.667,this.speed,this.d,_prevSpin*(.75+Math.random()*.5),this.size,this.hp);
+        _split1.spawn(this.x,this.y,this.md+Math.PI*.7,this.speed,this.d,_prevSpin*(.75+Math.random()*.5),this.size,this.hp);
+        _split2.spawn(this.x,this.y,this.md-Math.PI*.7,this.speed,this.d,_prevSpin*(.75+Math.random()*.5),this.size,this.hp);
     }
 
     update(dt){
@@ -82,6 +82,7 @@ class Enemy {
 class EnemyPool {
     pool = [];
     delay = 25;
+    #delayDeincrement = 0
     constructor(size = 256){
         for (let i=0;i<size;i++){
             const enemy = new Enemy();
@@ -122,10 +123,12 @@ class EnemyPool {
             };
         }
 
-        if (ctrl.space){if(this.getDormantEnemy()){this.getDormantEnemy().spawn(Math.random()*canvas.width-canvas.width/2,Math.random()*canvas.height-canvas.height/2,Math.random()*2*Math.PI-Math.PI,5,1,0.04,320,32)}}
+        //debug oranges
+        //if (ctrl.space){if(this.getDormantEnemy()){this.getDormantEnemy().spawn(Math.random()*canvas.width-canvas.width/2,Math.random()*canvas.height-canvas.height/2,Math.random()*2*Math.PI-Math.PI,5,1,0.04,320,32)}}
         this.delay += dt/5;
-        if (this.delay>ENEMYDELAY) {
+        if (this.delay>ENEMYDELAY-this.#delayDeincrement) {
             this.delay = 0;
+            this.#delayDeincrement<10?this.#delayDeincrement+=0.5:void(0);
             const _dir = Math.random()*Math.PI*2;
             const _coords = goToEdge(_dir);
             if(this.getDormantEnemy()){this.getDormantEnemy().spawn(_coords.x,_coords.y,_dir+Math.PI,5,_dir,0.04,320,32);console.debug("enemy spawned")}
@@ -196,26 +199,27 @@ class BulletPool {
 
 //Functions
 
-function resizeCanvas() {
-    canvas.style.width = `100%`;
-    canvas.style.height = `100%`;
-    // 1. Get the layout boundaries determined by your CSS (100% width/height)
-    const rect = canvas.getBoundingClientRect();
-    
-    // 2. Account for High-DPI screens (Retina displays)
-    const dpr = window.devicePixelRatio || 1;
-    
-    // 3. Scale the internal canvas bitmap size to match layout * pixel density
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    
-    // 4. Force the CSS display footprint to remain exactly what it should be
-    canvas.style.width = `${rect.width}px`;
-    canvas.style.height = `${rect.height}px`;
-    
-    // 5. Scale the drawing context so your drawing commands don't warp
-    ctx.translate(canvas.width/2,canvas.height/2);
-    ctx.scale(dpr,dpr);
+const resizeCanvas = function() {
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+
+    // 3. Calculate the best matching 16:9 physical size
+    let width = windowWidth;
+    let height = windowWidth * (9 / 16);
+
+    if (height > windowHeight) {
+        height = windowHeight;
+        width = windowHeight * (16 / 9);
+    }
+
+    // 4. Set the actual bitmap resolution (for sharp graphics)
+    canvas.width = 1920;
+    canvas.height = 1080;
+
+    // 5. Update the CSS display size to fit the screen
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    ctx.translate(canvas.width/2,canvas.height/2)
 }
 
 const loadImages = async function() {
@@ -257,15 +261,15 @@ const fireBullet = function() {
 };
 
 const checkCollisions = function(){
-    for (let i=bulletPool.pool.length-1;i>=0;i--){
-        let bullet = bulletPool.pool[i];
-        if (!bullet.active) continue;
-        for (let j=enemyPool.pool.length-1;j>=0;j--){
-            let enemy = enemyPool.pool[j];
-            if (!enemy.active) continue;
+    for (let i=enemyPool.pool.length-1;i>=0;i--){
+        const enemy = enemyPool.pool[i];
+        if (!enemy.active) continue;
+        for (let j=bulletPool.pool.length-1;j>=0;j--){
+            const bullet = bulletPool.pool[j];
+            if (!bullet.active) continue;
             
-            let dx = bullet.x - enemy.x;
-            let dy = bullet.y - enemy.y;
+            const dx = bullet.x - enemy.x;
+            const dy = bullet.y - enemy.y;
 
             const collisionRadius = enemy.size/2 + 4;
             if (dx*dx+dy*dy<collisionRadius*collisionRadius){
@@ -274,8 +278,16 @@ const checkCollisions = function(){
                 if(enemy.hp<=0){enemy.size>40?enemy.split():enemy.active=false}
                 bullet.active = false;
                 break;
-            }
+            };
         };
+        const dx = player.px - enemy.x;
+        const dy = player.py - enemy.y;
+        const collisionRadius = enemy.size/2 + 32;
+        if (dx*dx+dy*dy<collisionRadius*collisionRadius&&player.i!=-59){
+                player.hp -= 2.5
+                player.i = -60
+                break;
+            };
     };
 };
 
@@ -296,9 +308,9 @@ const draw = function() {
             ctx.save();
             ctx.translate(enemyPool.pool[i].x,enemyPool.pool[i].y)
             ctx.rotate(enemyPool.pool[i].d)
-            if (enemyPool.pool[i].hurt) ctx.filter = 'brightness(0) invert(1)';
+            if (enemyPool.pool[i].hurt) ctx.filter = "brightness(0) invert(1)";
             ctx.drawImage(imgCanvas, 160, 0, 320, 320, enemyPool.pool[i].size/64*-40, enemyPool.pool[i].size/64*-40, enemyPool.pool[i].size/64*80, enemyPool.pool[i].size/64*80);
-            ctx.filter = 'none';
+            ctx.filter = "none";
             ctx.restore();
     }};
     for (let i=0;i<bulletPool.pool.length;i++){
@@ -314,8 +326,16 @@ const draw = function() {
     //transform player
     ctx.translate(player.px,player.py);
     ctx.rotate(player.d);
+    if (player.i === -60) ctx.filter = "brightness(0) invert(1)";
     //draw player
     ctx.drawImage(imgCanvas, 0, 0, 128, 128,-32,-32,64,64);
+    ctx.filter = "none"
+    ctx.restore();
+    //health bar
+    ctx.save();
+    ctx.fillRect(-canvas.width/2+10,canvas.height/2-10,320,-40);
+    ctx.fillStyle = `hsl(${player.hp*2.4},100%,50%)`
+    ctx.fillRect(-canvas.width/2+20,canvas.height/2-20,player.hp*6,-20);
     ctx.restore();
 };
 
@@ -365,10 +385,13 @@ const printDebug = function () {
     mouse:${Math.round(mousePos.x)+", "+Math.round(mousePos.y)}
     keys:${ctrl.left+ctrl.right+ctrl.up+ctrl.down+ctrl.space+ctrl.lclick+ctrl.rclick+ctrl.mclick}
     player:${Math.round(player.px)+","+Math.round(player.py)+","+Math.round(player.d)}
+    hp:${player.hp}
     `
 };
 
 const updatePlayer = function (dt) {
+    player.i+=1
+    if (player.i>0&&player.hp<50){player.hp+=.05;player.hp=Math.round(player.hp*100)/100}
     const _difX = mousePos.x-player.px;
     const _difY = mousePos.y-player.py;
     player.d = Math.atan2(_difY,_difX);
@@ -428,9 +451,9 @@ const DTCAP = 0.1;
 const SPEED = 72;
 const SLOWSPEED = 36;
 const FRICTION = 0.95;
-const ENEMYDELAY = 30;
+const ENEMYDELAY = 20;
 //Variables & Lists
-const player = {px:0,py:0,vx:0,vy:0,d:0}
+const player = {px:0,py:0,vx:0,vy:0,d:0,hp:50,i:-60}
 let frameSize = gameFrame.getBoundingClientRect();
 const bullets = []
 const mousePos = {x:0,y:0};
