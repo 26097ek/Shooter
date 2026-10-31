@@ -18,6 +18,54 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 //Classes
 
+class Flash{
+    constructor(){
+        this.x = 0
+        this.y = 0
+        this.godRay = false
+        this.alpha = 0
+        this.active = false
+    }
+    spawn(x,y,godRay){
+        this.x = x
+        this.y = y
+        this.godRay = godRay
+        this.alpha = 1.0
+        this.active = true
+    }
+
+    update(){
+        if (!this.active) return;
+        this.godRay?this.alpha-=.01:this.alpha-=.25;
+        if (this.alpha <=0)this.active=false
+    }
+}
+
+class FlashPool{
+    pool=[]
+    constructor(size=8){
+        for(let i=0;i<size;i++){
+            this.pool.push(new Flash())
+        }
+    }
+    getDormantFlash(){
+        for (let i = 0; i < this.pool.length; i++) {
+            if (!this.pool[i].active) {
+                return this.pool[i];
+            }
+        }
+        // Optionally expand pool if all are active
+        const newFlash = new Flash();
+        this.pool.push(newFlash);
+        return newFlash;
+    }
+    updateAll(){
+        for (let i=0;i<this.pool.length;i++){
+            this.pool[i].update()
+        }
+    }
+}
+
 class Enemy {
     constructor(){
         this.x = 0;
@@ -48,6 +96,7 @@ class Enemy {
 
     split(){
         this.size >= 320?this.hp = 8:this.hp = 1;
+        if(this.size >= 320)shake(50,player.d);
         this.size *= .5;
         this.speed *= 2;
         this.vx = this.speed*Math.cos(this.md);
@@ -85,8 +134,7 @@ class EnemyPool {
     #delayDeincrement = 0
     constructor(size = 256){
         for (let i=0;i<size;i++){
-            const enemy = new Enemy();
-            this.pool.push(enemy);
+            this.pool.push(new Enemy());
         };
     };
 
@@ -124,11 +172,11 @@ class EnemyPool {
         }
 
         //debug oranges
-        //if (ctrl.space){if(this.getDormantEnemy()){this.getDormantEnemy().spawn(Math.random()*canvas.width-canvas.width/2,Math.random()*canvas.height-canvas.height/2,Math.random()*2*Math.PI-Math.PI,5,1,0.04,320,32)}}
+        if (ctrl.space){if(this.getDormantEnemy()){this.getDormantEnemy().spawn(Math.random()*canvas.width-canvas.width/2,Math.random()*canvas.height-canvas.height/2,Math.random()*2*Math.PI-Math.PI,5,1,0.04,320,32)}}
         this.delay += dt/5;
         if (this.delay>ENEMYDELAY-this.#delayDeincrement) {
             this.delay = 0;
-            this.#delayDeincrement<10?this.#delayDeincrement+=0.5:void(0);
+            this.#delayDeincrement<15?this.#delayDeincrement+=0.5:void(0);
             const _dir = Math.random()*Math.PI*2;
             const _coords = goToEdge(_dir);
             if(this.getDormantEnemy()){this.getDormantEnemy().spawn(_coords.x,_coords.y,_dir+Math.PI,5,_dir,0.04,320,32);console.debug("enemy spawned")}
@@ -199,6 +247,12 @@ class BulletPool {
 
 //Functions
 
+const shake = function(intensity,direction){
+    shakeI = intensity;
+    shakeD = direction;
+    shakeTick = 0
+}
+
 const resizeCanvas = function() {
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
@@ -235,12 +289,25 @@ const loadImages = async function() {
         const images = await Promise.all(imageNames.map(loadSingleImage));
 
         const imgCanvasctx = imgCanvas.getContext("2d");
-        imgCanvas.width = 1024;
+        imgCanvas.width = 1500;
         imgCanvas.height = 320;
 
         let x = 0;
         for (const image of images) {
             imgCanvasctx.drawImage(image, x, 0);
+            x += image.width;
+        }
+
+
+        const bigImages = await Promise.all(bigImageNames.map(loadSingleImage));
+
+        const bigImgCanvasctx = bigImgCanvas.getContext("2d");
+        bigImgCanvas.width = 2800;
+        bigImgCanvas.height = 2800;
+
+        x = 0;
+        for (const image of bigImages) {
+            bigImgCanvasctx.drawImage(image, x, 0);
             x += image.width;
         }
         
@@ -275,7 +342,7 @@ const checkCollisions = function(){
             if (dx*dx+dy*dy<collisionRadius*collisionRadius){
                 enemy.hp -= 1;
                 enemy.hurt = true;
-                if(enemy.hp<=0){enemy.size>40?enemy.split():enemy.active=false}
+                if(enemy.hp<=0){flashPool.getDormantFlash().spawn(enemy.x,enemy.y,enemy.size>=320);enemy.size>40?enemy.split():enemy.active=false}
                 bullet.active = false;
                 break;
             };
@@ -285,6 +352,7 @@ const checkCollisions = function(){
         const collisionRadius = enemy.size/2 + 32;
         if (dx*dx+dy*dy<collisionRadius*collisionRadius&&player.i!=-59){
                 player.hp -= 2.5
+                if (player.hp<=0){gameOver()}
                 player.i = -60
                 break;
             };
@@ -292,19 +360,11 @@ const checkCollisions = function(){
 };
 
 const draw = function() {
-    //lots of steps here, so im going to label them
     //clear canvas
     ctx.clearRect(-canvas.width/2, -canvas.height/2, canvas.width, canvas.height)
-    //draw line    
-    /*ctx.beginPath();
-    ctx.strokeStyle = "#ff0000"
-    ctx.lineWidth = 5
-    ctx.setLineDash([16,12])
-    ctx.moveTo(player.px+(canvas.width/2),player.py+(canvas.height/2));
-    ctx.lineTo(mousePos.x+(canvas.width/2),mousePos.y+(canvas.height/2));
-    ctx.stroke();*/
+    ctx.translate(shakeX,shakeY);
     for (let i=0;i<enemyPool.pool.length;i++){
-        if (enemyPool.pool[i].active){
+        if(!enemyPool.pool[i].active)continue;
             ctx.save();
             ctx.translate(enemyPool.pool[i].x,enemyPool.pool[i].y)
             ctx.rotate(enemyPool.pool[i].d)
@@ -312,14 +372,14 @@ const draw = function() {
             ctx.drawImage(imgCanvas, 160, 0, 320, 320, enemyPool.pool[i].size/64*-40, enemyPool.pool[i].size/64*-40, enemyPool.pool[i].size/64*80, enemyPool.pool[i].size/64*80);
             ctx.filter = "none";
             ctx.restore();
-    }};
+    };
     for (let i=0;i<bulletPool.pool.length;i++){
-        if (bulletPool.pool[i].active){
-            ctx.save();
-            ctx.translate(bulletPool.pool[i].x,bulletPool.pool[i].y);
-            ctx.drawImage(imgCanvas, 128, 0, 32, 32, -8, -8, 16, 16);
-            ctx.restore();
-    }};
+        if (!bulletPool.pool[i].active)continue;
+        ctx.save();
+        ctx.translate(bulletPool.pool[i].x,bulletPool.pool[i].y);
+        ctx.drawImage(imgCanvas, 128, 0, 32, 32, -8, -8, 16, 16);
+        ctx.restore();
+    };
 
     //save state
     ctx.save();
@@ -331,12 +391,28 @@ const draw = function() {
     ctx.drawImage(imgCanvas, 0, 0, 128, 128,-32,-32,64,64);
     ctx.filter = "none"
     ctx.restore();
-    //health bar
-    ctx.save();
+    //Flashes
+    ctx.globalCompositeOperation = "lighter";
+    for(let i=0;i<flashPool.pool.length;i++){
+        ctx.save();
+        if(!flashPool.pool[i].active)continue;
+        ctx.translate(flashPool.pool[i].x,flashPool.pool[i].y)
+        ctx.globalAlpha = flashPool.pool[i].alpha
+        flashPool.pool[i].godRay?ctx.drawImage(bigImgCanvas, 0,0,2800,2800,-1400,-1400,2800,2800):ctx.drawImage(imgCanvas, 480,0,160,160,-80,-80,160,160);
+        ctx.restore();
+    }
+    
+    ctx.globalAlpha = 1.0
+    ctx.translate(-shakeX,-shakeY);
+    //Health bar
+    ctx.fillStyle = "#000"
     ctx.fillRect(-canvas.width/2+10,canvas.height/2-10,320,-40);
     ctx.fillStyle = `hsl(${player.hp*2.4},100%,50%)`
     ctx.fillRect(-canvas.width/2+20,canvas.height/2-20,player.hp*6,-20);
-    ctx.restore();
+    //Score
+
+    ctx.globalCompositeOperation = "source-over"
+    
 };
 
 const updateKey = function(state,e) {
@@ -379,6 +455,29 @@ const updateMouse = function (state,e) {
             break;
     };
 };
+
+const gameOver = function(){
+    game = false;
+    console.log("game over")
+}
+
+const updateShake = function(){
+    if (shakeI === 0) {
+        shakeX = 0;
+        shakeY = 0;
+        return;
+    }
+    shakeTick++
+    if((shakeTick%3) !== 0)return;
+    shakeX = shakeI*Math.cos(shakeD);
+    shakeY = shakeI*Math.sin(shakeD);
+    shakeI *= SHAKEDAMPING;
+    if (Math.abs(shakeI)<0.1) {
+        shakeI = 0;
+        shakeX = 0;
+        shakeY = 0;
+    }
+}
 
 const printDebug = function () {
     debug.textContent = `
@@ -429,10 +528,12 @@ const gameLoop = function(timestamp){
     fireBullet();
     bulletPool.updateAll(dt);
     enemyPool.updateAll(dt);
-    checkCollisions()
+    flashPool.updateAll()
+    checkCollisions();
+    updateShake()
     draw();
     printDebug();
-    
+    if (!game){return;};
 
     requestAnimationFrame(gameLoop);
 };
@@ -445,6 +546,7 @@ const ctx = canvas.getContext("2d");
 //const player = document.querySelector("#player");
 //const playerImg = document.querySelector("#playerImg");
 //Constants
+const SHAKEDAMPING = -0.9
 const BULLETSPEED = 200;
 const BULLETTIMIMG = 4;
 const DTCAP = 0.1;
@@ -473,13 +575,24 @@ const imageNames = [
     "ship1.svg",
     "bullet1.svg",
     "orange.svg",
-    "aimer.svg"
+    "flash.svg"
 ];
+const bigImageNames = [
+    "godRays.svg"
+]
 const imgCanvas = document.createElement("canvas");
+const bigImgCanvas = document.createElement("canvas");
 const bulletPool = new BulletPool();
 const enemyPool = new EnemyPool();
+const flashPool = new FlashPool();
 let timing = 0;
 let lt;
+let shakeX = 0;
+let shakeY = 0;
+let shakeI = 0;
+let shakeD = 0;
+let shakeTick = 0
+let game = true
 
 //Event Listeners
 resizeCanvas()
@@ -500,4 +613,3 @@ document.addEventListener("mouseup", (e)=>{updateMouse(false,e)},{passive:true})
 //Img loading
 loadImages();
 //Main Code
-
