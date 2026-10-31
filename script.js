@@ -173,7 +173,7 @@ class EnemyPool {
         }
 
         //debug oranges
-        if (ctrl.space){if(this.getDormantEnemy()){this.getDormantEnemy().spawn(Math.random()*canvas.width-canvas.width/2,Math.random()*canvas.height-canvas.height/2,Math.random()*2*Math.PI-Math.PI,5,1,0.04,320,32)}}
+        //if (ctrl.space){if(this.getDormantEnemy()){this.getDormantEnemy().spawn(Math.random()*canvas.width-canvas.width/2,Math.random()*canvas.height-canvas.height/2,Math.random()*2*Math.PI-Math.PI,5,1,0.04,320,32)}}
         this.delay += dt/5;
         if (this.delay>ENEMYDELAY-this.#delayDeincrement) {
             this.delay = 0;
