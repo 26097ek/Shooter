@@ -95,6 +95,7 @@ class Enemy {
     };
 
     split(){
+        this.size>=320?score+=9:this.size>=160?score+=1:void 0;
         this.size >= 320?this.hp = 8:this.hp = 1;
         if(this.size >= 320)shake(50,player.d);
         this.size *= .5;
@@ -340,6 +341,7 @@ const checkCollisions = function(){
 
             const collisionRadius = enemy.size/2 + 4;
             if (dx*dx+dy*dy<collisionRadius*collisionRadius){
+                score+=1;
                 enemy.hp -= 1;
                 enemy.hurt = true;
                 if(enemy.hp<=0){flashPool.getDormantFlash().spawn(enemy.x,enemy.y,enemy.size>=320);enemy.size>40?enemy.split():enemy.active=false}
@@ -410,6 +412,12 @@ const draw = function() {
     ctx.fillStyle = `hsl(${player.hp*2.4},100%,50%)`
     ctx.fillRect(-canvas.width/2+20,canvas.height/2-20,player.hp*6,-20);
     //Score
+    ctx.fillStyle = "#ff0";
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 4
+    ctx.font = "bold 64px sans-serif"
+    ctx.strokeText(score,-canvas.width/2+10,-canvas.height/2+64)
+    ctx.fillText(score,-canvas.width/2+10,-canvas.height/2+64)
 
     ctx.globalCompositeOperation = "source-over"
     
@@ -591,7 +599,8 @@ let shakeX = 0;
 let shakeY = 0;
 let shakeI = 0;
 let shakeD = 0;
-let shakeTick = 0
+let shakeTick = 0;
+let score = 0;
 let game = true
 
 //Event Listeners
