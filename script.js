@@ -18,6 +18,112 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 //Classes
 
+class SoundManager {
+  constructor() {
+    this.ctx = null;
+    this.masterGain = null;
+    this.noiseBuffer = null;
+    this.isInitialized = false;
+  }
+
+  // Safe initialization triggered on first user interaction
+  init() {
+    if (this.isInitialized) return;
+
+    // 1. Create AudioContext and Master Volume Node
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    this.ctx = new AudioContextClass();
+    this.masterGain = this.ctx.createGain();
+    this.masterGain.gain.setValueAtTime(0.5, this.ctx.currentTime); // Master volume at 50%
+    this.masterGain.connect(this.ctx.destination);
+
+    // 2. Pre-generate procedural white noise for impacts/explosions
+    this.noiseBuffer = this._generateNoiseBuffer();
+    this.isInitialized = true;
+    console.log("Audio System fully loaded and ready.");
+  }
+
+  // Generates 0.5 seconds of random white noise data
+  _generateNoiseBuffer() {
+    const bufferSize = this.ctx.sampleRate * 0.5;
+    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    return buffer;
+  }
+
+  // Ensures context wakes up if suspended by browser security
+  async _resumeContext() {
+    if (!this.isInitialized) this.init();
+    if (this.ctx && this.ctx.state === 'suspended') {
+      await this.ctx.resume();
+    }
+  }
+
+  // Plays a layered, punchy laser shot
+  async playLaser() {
+    await this._resumeContext();
+    const now = this.ctx.currentTime;
+
+    // --- LAYER 1: Core Synth Tone ---
+    const osc = this.ctx.createOscillator();
+    const oscGain = this.ctx.createGain();
+    
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(1200, now); // Start high
+    osc.frequency.exponentialRampToValueAtTime(150, now + 0.12); // Sweep down fast
+    
+    oscGain.gain.setValueAtTime(0.3, now);
+    oscGain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+    
+    osc.connect(oscGain);
+    oscGain.connect(this.masterGain);
+    
+    osc.start(now);
+    osc.stop(now + 0.12);
+
+    // --- LAYER 2: Noise Burst Impact (The "Click/Pop") ---
+    const noiseNode = this.ctx.createBufferSource();
+    const noiseGain = this.ctx.createGain();
+    
+    noiseNode.buffer = this.noiseBuffer;
+    
+    // Very fast decay for a transient punch effect
+    noiseGain.gain.setValueAtTime(0.15, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.03);
+    
+    noiseNode.connect(noiseGain);
+    noiseGain.connect(this.masterGain);
+    
+    noiseNode.start(now);
+    noiseNode.stop(now + 0.03);
+  }
+
+  // Plays a low procedural noise explosion
+  async playExplosion() {
+    await this._resumeContext();
+    const now = this.ctx.currentTime;
+
+    const noiseNode = this.ctx.createBufferSource();
+    const noiseGain = this.ctx.createGain();
+    
+    noiseNode.buffer = this.noiseBuffer;
+    
+    // Long decay for a heavy debris explosion
+    noiseGain.gain.setValueAtTime(0.4, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+    
+    noiseNode.connect(noiseGain);
+    noiseGain.connect(this.masterGain);
+    
+    noiseNode.start(now);
+    noiseNode.stop(now + 0.4);
+  }
+}
+
+
 class Flash{
     constructor(){
         this.x = 0
@@ -74,7 +180,7 @@ class Enemy {
         this.vy = 0;
         this.d = 0;
         this.spin = 0;
-        this.size = 64;
+        this.size = 640;
         this.hp = 0;
         this.hurt = false;
         this.active = false;
@@ -95,11 +201,11 @@ class Enemy {
     };
 
     split(){
-        this.size>=320?score+=9:this.size>=160?score+=1:void 0;
-        this.size >= 320?this.hp = 8:this.hp = 1;
-        if(this.size >= 320)shake(50,player.d);
+        this.size>=640?score+=9:this.size>=320?score+=1:void 0;
+        this.size >= 640?this.hp = 8:this.hp = 1;
+        if(this.size >= 640)shake(50,player.d);audio.playExplosion();
         this.size *= .5;
-        this.speed *= 2;
+        this.speed *= 1.5;
         this.vx = this.speed*Math.cos(this.md);
         this.vy = this.speed*Math.sin(this.md);
         const _prevSpin = this.spin;
@@ -180,7 +286,7 @@ class EnemyPool {
             this.#delayDeincrement<15?this.#delayDeincrement+=0.5:void(0);
             const _dir = Math.random()*Math.PI*2;
             const _coords = goToEdge(_dir);
-            if(this.getDormantEnemy()){this.getDormantEnemy().spawn(_coords.x,_coords.y,_dir+Math.PI,5,_dir,0.04,320,32);console.debug("enemy spawned")}
+            if(this.getDormantEnemy()){this.getDormantEnemy().spawn(_coords.x,_coords.y,_dir+Math.PI,5,_dir,0.04,640,32);console.debug("enemy spawned")}
         };
         for (let i=0;i<this.pool.length;i++){
             this.pool[i].update(dt)
@@ -290,8 +396,8 @@ const loadImages = async function() {
         const images = await Promise.all(imageNames.map(loadSingleImage));
 
         const imgCanvasctx = imgCanvas.getContext("2d");
-        imgCanvas.width = 1500;
-        imgCanvas.height = 320;
+        imgCanvas.width = 1700;
+        imgCanvas.height = 640;
 
         let x = 0;
         for (const image of images) {
@@ -322,10 +428,12 @@ const loadImages = async function() {
 const fireBullet = function() {
     --timing
     if (!ctrl.lclick||timing>=0) return;
+    audio.playLaser();
     const bullet = bulletPool.getDormantBullet();
     const speed = BULLETSPEED+Math.floor(Math.random()*4-2)
     bullet.spawn(player.px,player.py,speed*Math.cos(player.d),speed*Math.sin(player.d));
     timing = BULLETTIMIMG+Math.floor(Math.random()*2-1)
+           
 };
 
 const checkCollisions = function(){
@@ -344,7 +452,7 @@ const checkCollisions = function(){
                 score+=1;
                 enemy.hp -= 1;
                 enemy.hurt = true;
-                if(enemy.hp<=0){flashPool.getDormantFlash().spawn(enemy.x,enemy.y,enemy.size>=320);enemy.size>40?enemy.split():enemy.active=false}
+                if(enemy.hp<=0){flashPool.getDormantFlash().spawn(enemy.x,enemy.y,enemy.size>=640);enemy.size>40?enemy.split():enemy.active=false}
                 bullet.active = false;
                 break;
             };
@@ -371,7 +479,7 @@ const draw = function() {
             ctx.translate(enemyPool.pool[i].x,enemyPool.pool[i].y)
             ctx.rotate(enemyPool.pool[i].d)
             if (enemyPool.pool[i].hurt) ctx.filter = "brightness(0) invert(1)";
-            ctx.drawImage(imgCanvas, 160, 0, 320, 320, enemyPool.pool[i].size/64*-40, enemyPool.pool[i].size/64*-40, enemyPool.pool[i].size/64*80, enemyPool.pool[i].size/64*80);
+            ctx.drawImage(imgCanvas, 160, 0, 640, 640, enemyPool.pool[i].size/64*-40, enemyPool.pool[i].size/64*-40, enemyPool.pool[i].size/64*80, enemyPool.pool[i].size/64*80);
             ctx.filter = "none";
             ctx.restore();
     };
@@ -400,7 +508,7 @@ const draw = function() {
         if(!flashPool.pool[i].active)continue;
         ctx.translate(flashPool.pool[i].x,flashPool.pool[i].y)
         ctx.globalAlpha = flashPool.pool[i].alpha
-        flashPool.pool[i].godRay?ctx.drawImage(bigImgCanvas, 0,0,2800,2800,-1400,-1400,2800,2800):ctx.drawImage(imgCanvas, 480,0,160,160,-80,-80,160,160);
+        flashPool.pool[i].godRay?ctx.drawImage(bigImgCanvas, 0,0,2800,2800,-1400,-1400,2800,2800):ctx.drawImage(imgCanvas, 800,0,160,160,-80,-80,160,160);
         ctx.restore();
     }
     
@@ -521,7 +629,9 @@ const updatePlayer = function (dt) {
     //player.style.left = `${50((0-player.x)/16)}%`;
 };
 
-
+const startMusic = function(){
+    musicLoop.play().catch(error=>{console.warning("Music loop failed to play:"+error)})
+}
 
 const setup = function(){
     requestAnimationFrame(gameLoop);
@@ -578,6 +688,16 @@ const ctrl = {
     rclick:false,
     mclick:false,
 };
+let timing = 0;
+let lt;
+let shakeX = 0;
+let shakeY = 0;
+let shakeI = 0;
+let shakeD = 0;
+let shakeTick = 0;
+let score = 0;
+
+let game = true
 //Images
 const imageNames = [
     "ship1.svg",
@@ -588,21 +708,17 @@ const imageNames = [
 const bigImageNames = [
     "godRays.svg"
 ]
+//Non-DOM Elements
 const imgCanvas = document.createElement("canvas");
 const bigImgCanvas = document.createElement("canvas");
+
+//Class Defs
 const bulletPool = new BulletPool();
 const enemyPool = new EnemyPool();
 const flashPool = new FlashPool();
-let timing = 0;
-let lt;
-let shakeX = 0;
-let shakeY = 0;
-let shakeI = 0;
-let shakeD = 0;
-let shakeTick = 0;
-let score = 0;
-let game = true
-
+const audio = new SoundManager();
+const musicLoop = new Audio("assets/music1.mp3");
+musicLoop.loop = true;
 //Event Listeners
 resizeCanvas()
 window.addEventListener("resize", resizeCanvas);
@@ -618,7 +734,8 @@ document.addEventListener("keydown", (e)=>{updateKey(true,e)},{passive:true});
 document.addEventListener("keyup", (e)=>{updateKey(false,e)},{passive:true});
 document.addEventListener("mousedown", (e)=>{updateMouse(true,e)},{passive:true});
 document.addEventListener("mouseup", (e)=>{updateMouse(false,e)},{passive:true});
+document.querySelector("#start").addEventListener("click", (e)=>{document.querySelector('#start').style.display='none';audio.init();setup();},{passive:true,once:true})
 
-//Img loading
+//Asset loading
 loadImages();
 //Main Code
