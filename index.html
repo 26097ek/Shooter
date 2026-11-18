@@ -22,8 +22,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
     </head>
     <body>
         <span id="loading">Loading...</span>
-        <button id="start">Play</button>
-        <div id="game" oncontextmenu="return false;">
+        <button onclick="document.querySelector('#start').style.display='none';setup();" id="start">Play</button>
+        <div id="game" oncontextmenu="return false;" style="display:block !important;">
             <canvas id="canvas"></canvas>
         </div>
         <span id="debug"></span>
